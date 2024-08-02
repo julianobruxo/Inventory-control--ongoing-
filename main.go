@@ -6,85 +6,108 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
-type product struct { // tipos que serão usados
+type Product struct {
 	ID       int
 	Name     string
 	Quantity int
 	Price    float64
 }
 
-type Inventory interface { //interface que lista os metodos que serão utilizados
-	AddProduct(p product) error
-	GetProduct(id int) (product, error)
-	UpdateProduct(p product) error
-	DeleteProduct(p product) error
-	ListProducts() ([]product, error)
+type Inventory interface {
+	AddProduct(p Product) error
+	GetProduct(id int) (Product, error)
+	UpdateProduct(id int, newId *int, newName *string, newQuantity *int, newPrice *float64) error
+	DeleteProduct(id int) (string, error)
+	ListProducts() ([]Product, error)
 }
 
-type inventory struct { // mapa que armazena os productos
-	products map[int]product //utiliza um int da ID como valor e o product como valor
+type items struct {
+	products map[int]Product
 }
 
-// Métodos
-// // mètodo que lista os produtos no inventário e retorna um ponteiro do inventário
-func newInventory() *inventory {
-	return &inventory{
-		products: make(map[int]product),
+func newInventory() *items {
+	return &items{
+		products: make(map[int]Product),
 	}
 }
 
-func (inv *inventory) AddProduct(p product) error {
+func (inv *items) AddProduct(p Product) error {
 	if _, exists := inv.products[p.ID]; exists {
-		return fmt.Errorf("Product ID #%d already exists", p.ID) //Erro caso o produto com aquela ID já exista em estoque
+		return fmt.Errorf("Product ID #%d already exists", p.ID)
 	}
-	inv.products[p.ID] = p // adiciona o produto p ao mapa inv.products com a chave p.ID
+	inv.products[p.ID] = p
 	return nil
 }
 
-// Buscar Produto: método aponta para inventory, recebe um int da ID e retorn um produto e um erro
-func (inv *inventory) GetProduct(id int) (product, error) {
+func (inv *items) GetProduct(id int) (Product, error) {
 	if p, exists := inv.products[id]; exists {
-		//se o produto existir, retorna o produto
 		return p, nil
 	}
-	return product{}, fmt.Errorf("Product with ID#:%d not found in our inventory", id)
-	// do contrário, retorna um erro
+	return Product{}, fmt.Errorf("Product with ID#:%d not found in our items", id)
 }
 
-// Atualiza os produtos no inventário
-func (inv *inventory) UpdateProduct(p product) error {
-	if _, exists := inv.products[p.ID]; exists {
-		inv.products[p.ID] = p //se o produto existir, retorna o produto
-		return nil
+func (inv *items) validateNewID(newID int) error {
+	if _, exists := inv.products[newID]; exists {
+		return fmt.Errorf("Product ID %d already exists", newID)
 	}
-	return fmt.Errorf("Product with ID #:%d not found in our inventory", p.ID)
-	// do contrário, retorna um erro
+	return nil
 }
 
-func (inv *inventory) DeleteProduct(id int) (string, error) {
+func (inv *items) UpdateProduct(id int, newId *int, newName *string, newQuantity *int, newPrice *float64) error {
+	product, exists := inv.products[id]
+	if !exists {
+		return fmt.Errorf("Product ID #%d not found", id)
+	}
+
+	if newId != nil {
+		if err := inv.validateNewID(*newId); err != nil {
+			return err
+		}
+		delete(inv.products, id)
+		product.ID = *newId
+	}
+
+	if newName != nil {
+		product.Name = *newName
+		fmt.Print("New name is", product.Name)
+	}
+
+	if newQuantity != nil {
+		product.Quantity = *newQuantity
+	}
+
+	if newPrice != nil {
+		product.Price = *newPrice
+	}
+
+	inv.products[product.ID] = product
+	return nil
+}
+
+func (inv *items) DeleteProduct(id int) (string, error) {
 	if _, exists := inv.products[id]; exists {
-		fmt.Printf("Are you sure you want to delete product #%d from the inventory?", id)
+		fmt.Printf("Are you sure you want to delete Product #%d from the items? (Type 'yes' to confirm): ", id)
 		var confirmation string
 		fmt.Scanln(&confirmation)
-		if confirmation == "Sim" || confirmation == "sim" {
-			delete(inv.products, id) //se o produto existir,deleta o produto
+		if strings.ToLower(confirmation) == "yes" {
+			delete(inv.products, id)
 			return fmt.Sprintf("Product #%d removed successfully", id), nil
 		} else {
-			return fmt.Sprintf("Deletion of Product #%d canceled", id), nil // mensagem de erro
+			return fmt.Sprintf("Deletion of Product #%d canceled", id), nil
 		}
 	}
-	return fmt.Sprintf("Product ID #%d not found", id), nil
-
+	return "", fmt.Errorf("Product ID #%d not found", id)
 }
 
-func (inv *inventory) ListProducts() ([]product, error) {
+func (inv *items) ListProducts() ([]Product, error) {
 	if len(inv.products) == 0 {
-		return nil, fmt.Errorf("No products found in the inventory")
+		return nil, fmt.Errorf("No products found in the items")
 	}
 
-	var productList []product
+	var productList []Product
 	for _, p := range inv.products {
 		productList = append(productList, p)
 	}
@@ -94,23 +117,21 @@ func (inv *inventory) ListProducts() ([]product, error) {
 func main() {
 	inv := newInventory()
 	reader := bufio.NewReader(os.Stdin)
-
+	fmt.Println("Welcome to our Inventory Control!")
 	for {
-		fmt.Println("Welcome to our Inventory Control!\nWhat would you like to do?")
+		time.Sleep(time.Second * 1)
+		fmt.Println("What would you like to do?")
 		fmt.Println("1. Add Product")
 		fmt.Println("2. Update Product")
 		fmt.Println("3. Delete Product")
 		fmt.Println("4. List Products")
 		fmt.Println("5. Exit")
-		var choice int
+
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
 		choice, err := strconv.Atoi(input)
 		if err != nil {
 			fmt.Println("Invalid input.\nPlease select a number from 1 to 5")
-
-			var discard string
-			fmt.Scanln(&discard)
 			continue
 		}
 		switch choice {
@@ -119,7 +140,7 @@ func main() {
 			var name string
 			var quantity int
 			var price float64
-			fmt.Println("Enter product ID:")
+			fmt.Println("Enter Product ID:")
 			input, _ = reader.ReadString('\n')
 			input = strings.TrimSpace(input)
 			id, err = strconv.Atoi(input)
@@ -127,11 +148,11 @@ func main() {
 				fmt.Println("Invalid input for ID")
 				continue
 			}
-			fmt.Println("Enter product Name:")
+			fmt.Println("Enter Product Name:")
 			name, _ = reader.ReadString('\n')
 			name = strings.TrimSpace(name)
 
-			fmt.Println("Enter product Quantity:")
+			fmt.Println("Enter Product Quantity:")
 			input, _ = reader.ReadString('\n')
 			input = strings.TrimSpace(input)
 			quantity, err = strconv.Atoi(input)
@@ -139,7 +160,7 @@ func main() {
 				fmt.Println("Invalid input for Quantity")
 				continue
 			}
-			fmt.Println("Enter product Price in US $:")
+			fmt.Println("Enter Product Price in US $:")
 			input, _ = reader.ReadString('\n')
 			input = strings.TrimSpace(input)
 			price, err = strconv.ParseFloat(input, 64)
@@ -147,93 +168,116 @@ func main() {
 				fmt.Println("Invalid input for Price")
 				continue
 			}
-			//add product
-			p := product{ID: id, Name: name, Quantity: quantity, Price: price}
-			err := inv.AddProduct(p)
+			p := Product{ID: id, Name: name, Quantity: quantity, Price: price}
+			err = inv.AddProduct(p)
 			if err != nil {
-				fmt.Println("Error addidng product", err)
+				fmt.Println("Error adding Product", err)
 			} else {
-				fmt.Println("Product added sucessfully.")
+				fmt.Println("Product added successfully.")
 			}
 		case 2:
-			//update product
 			var id int
-			fmt.Println("Enter product ID to update it")
-			fmt.Scanln(&id)
-
-			p, err := inv.GetProduct(id)
+			fmt.Println("Enter Product ID to update it")
+			input, _ := reader.ReadString('\n')
+			input = strings.TrimSpace(input)
+			id, err = strconv.Atoi(input)
 			if err != nil {
-				fmt.Println("Error getting the product")
-			} else {
-				// solicita novos dados para atualizar o produto
-				var id int
-				var name string
-				var quantity int
-				var price float64
-
-				fmt.Println("Enter product NEW ID: (leave it empty to keep current values)")
-				fmt.Scanln(&id)
-				fmt.Println("Enter product NEW Name:(leave it empty to keep current values)")
-				fmt.Scanln(&name)
-				fmt.Println("Enter product NEW Quantity:(leave it empty to keep current values)")
-				fmt.Scanln(&quantity)
-				fmt.Println("Enter product NEW Price in US $:(leave it empty to keep current values)")
-				fmt.Scanln(&price)
-
-				if name != "" {
-					p.Name = name
-				}
-				if quantity != 0 {
-					p.Quantity = quantity
-				}
-				if id != 0 {
-					p.ID = id
-				}
-				if price != 0 {
-					p.Price = price
-				}
-
-				//TRATAMENTO DE ERRO
-				err := inv.UpdateProduct(p)
-				if err != nil {
-					fmt.Println("Error updating product", err)
-				} else {
-					fmt.Println("Product updated successfully")
-				}
+				fmt.Println("Invalid input for ID. Please select a number.")
+				continue
 			}
 
+			_, err = inv.GetProduct(id)
+			if err != nil {
+				fmt.Println("Error getting the Product:", err)
+				continue
+			} else {
+				var newId *int
+				var newName *string
+				var newQuantity *int
+				var newPrice *float64
+
+				fmt.Println("Enter Product NEW ID: (leave it empty to keep current values)")
+				input, _ = reader.ReadString('\n')
+				input = strings.TrimSpace(input)
+				if input != "" {
+					newIdValue, err := strconv.Atoi(input)
+					if err != nil {
+						fmt.Println("Invalid input for ID")
+						continue
+					}
+					newId = &newIdValue
+				}
+
+				fmt.Println("Enter Product NEW Name: (leave it empty to keep current values)")
+				input, _ = reader.ReadString('\n')
+				input = strings.TrimSpace(input)
+				if input != "" {
+					newName = &input
+				}
+
+				fmt.Println("Enter Product NEW Quantity: (leave it empty to keep current values)")
+				input, _ = reader.ReadString('\n')
+				input = strings.TrimSpace(input)
+				if input != "" {
+					newQuantityValue, err := strconv.Atoi(input)
+					if err != nil {
+						fmt.Println("Invalid input for Quantity")
+						continue
+					}
+					newQuantity = &newQuantityValue
+				}
+
+				fmt.Println("Enter Product NEW Price in US $: (leave it empty to keep current values)")
+				input, _ = reader.ReadString('\n')
+				input = strings.TrimSpace(input)
+				if input != "" {
+					newPriceValue, err := strconv.ParseFloat(input, 64)
+					if err != nil {
+						fmt.Println("Invalid input for Price")
+						continue
+					}
+					newPrice = &newPriceValue
+				}
+
+				err = inv.UpdateProduct(id, newId, newName, newQuantity, newPrice)
+				if err != nil {
+					fmt.Println("Error updating product:", err)
+				} else {
+					fmt.Println("Product updated successfully.")
+				}
+			}
 		case 3:
-			//delete product
 			var id int
-			fmt.Println("Enter product ID to REMOVE it\n(WARNING:\ntHIS ACTION CANNOT BE UNDONE!)")
-			fmt.Scanln(&id)
+			fmt.Println("Enter product ID to REMOVE it\n(WARNING: THIS ACTION CANNOT BE UNDONE!)")
+			input, _ := reader.ReadString('\n')
+			input = strings.TrimSpace(input)
+			id, err = strconv.Atoi(input)
+			if err != nil {
+				fmt.Println("Invalid input for ID")
+				continue
+			}
 
 			msg, err := inv.DeleteProduct(id)
 			if err != nil {
-				fmt.Println("Error removing product. Try again", err)
+				fmt.Println("Error deleting product:", err)
 			} else {
 				fmt.Println(msg)
 			}
-
 		case 4:
-			//list products
 			products, err := inv.ListProducts()
 			if err != nil {
-				fmt.Println("Error fetching the products", err)
+				fmt.Println("Error listing products:", err)
 			} else {
-				fmt.Println("List of available produts in inventory:")
-				for _, p := range products {
-					fmt.Printf("ID: %d, Name: %s, Quantity: %d, Price: %.2f\n", p.ID, p.Name, p.Quantity, p.Price)
+				for _, product := range products {
+					fmt.Printf("ID: %d, Name: %s, Quantity: %d, Price: %.2f\n", product.ID, product.Name, product.Quantity, product.Price)
 				}
 			}
-
 		case 5:
-			fmt.Println("Thank you for using our  Inventory Control")
-			return
+			fmt.Println("Exiting Inventory Control...")
+			time.Sleep(time.Second * 1)
+			os.Exit(0)
 		default:
-			fmt.Println("Invalid choice. Please try again.")
+			fmt.Println("Invalid option. Please select a number from 1 to 5.")
 		}
-
 	}
-
 }
