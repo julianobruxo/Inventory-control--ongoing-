@@ -56,7 +56,7 @@ func (inv *items) validateNewID(newID int) error {
 	return nil
 }
 
-func (inv *items) UpdateProduct(id int, newId *int, newName *string, newQuantity *int, newPrice *float64) error {
+func (inv *items) UpdateProduct(id int, newId *int, newName string, newQuantity *int, newPrice *float64) error {
 	product, exists := inv.products[id]
 	if !exists {
 		return fmt.Errorf("Product ID #%d not found", id)
@@ -70,9 +70,9 @@ func (inv *items) UpdateProduct(id int, newId *int, newName *string, newQuantity
 		product.ID = *newId
 	}
 
-	if newName != nil {
-		product.Name = *newName
-		fmt.Print("New name is", product.Name)
+	if newName != "" {
+		product.Name = newName
+		fmt.Println(product.Name)
 	}
 
 	if newQuantity != nil {
@@ -85,6 +85,7 @@ func (inv *items) UpdateProduct(id int, newId *int, newName *string, newQuantity
 
 	inv.products[product.ID] = product
 	return nil
+
 }
 
 func (inv *items) DeleteProduct(id int) (string, error) {
@@ -192,7 +193,7 @@ func main() {
 				continue
 			} else {
 				var newId *int
-				var newName *string
+				var newName string
 				var newQuantity *int
 				var newPrice *float64
 
@@ -210,10 +211,10 @@ func main() {
 
 				fmt.Println("Enter Product NEW Name: (leave it empty to keep current values)")
 				input, _ = reader.ReadString('\n')
-				input = strings.TrimSpace(input)
-				if input != "" {
-					newName = &input
-				}
+				newName = strings.TrimSpace(input)
+				// if input != "" {
+				// 	newName = &input
+				// }4
 
 				fmt.Println("Enter Product NEW Quantity: (leave it empty to keep current values)")
 				input, _ = reader.ReadString('\n')
