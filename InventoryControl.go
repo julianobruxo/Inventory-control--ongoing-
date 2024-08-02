@@ -212,9 +212,6 @@ func main() {
 				fmt.Println("Enter Product NEW Name: (leave it empty to keep current values)")
 				input, _ = reader.ReadString('\n')
 				newName = strings.TrimSpace(input)
-				// if input != "" {
-				// 	newName = &input
-				// }4
 
 				fmt.Println("Enter Product NEW Quantity: (leave it empty to keep current values)")
 				input, _ = reader.ReadString('\n')
